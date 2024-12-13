@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "diffdrive_arduino/diffbot_system.hpp"
+#include "ros2_nera_hardware_interface/diffbot_system.hpp"
 
 #include <chrono>
 #include <cmath>
@@ -23,9 +23,9 @@
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
 #include "rclcpp/rclcpp.hpp"
 
-namespace diffdrive_arduino
+namespace ros2_nera_hardware_interface
 {
-hardware_interface::CallbackReturn DiffDriveArduinoHardware::on_init(
+hardware_interface::CallbackReturn NeraHardware::on_init(
   const hardware_interface::HardwareInfo & info)
 {
   if (
@@ -43,17 +43,6 @@ hardware_interface::CallbackReturn DiffDriveArduinoHardware::on_init(
   cfg_.baud_rate = std::stoi(info_.hardware_parameters["baud_rate"]);
   cfg_.timeout_ms = std::stoi(info_.hardware_parameters["timeout_ms"]);
   cfg_.enc_counts_per_rev = std::stoi(info_.hardware_parameters["enc_counts_per_rev"]);
-  if (info_.hardware_parameters.count("pid_p") > 0)
-  {
-    cfg_.pid_p = std::stoi(info_.hardware_parameters["pid_p"]);
-    cfg_.pid_d = std::stoi(info_.hardware_parameters["pid_d"]);
-    cfg_.pid_i = std::stoi(info_.hardware_parameters["pid_i"]);
-    cfg_.pid_o = std::stoi(info_.hardware_parameters["pid_o"]);
-  }
-  else
-  {
-    RCLCPP_INFO(rclcpp::get_logger("DiffDriveArduinoHardware"), "PID values not supplied, using defaults.");
-  }
   
 
   wheel_l_.setup(cfg_.left_wheel_name, cfg_.enc_counts_per_rev);
@@ -66,7 +55,7 @@ hardware_interface::CallbackReturn DiffDriveArduinoHardware::on_init(
     if (joint.command_interfaces.size() != 1)
     {
       RCLCPP_FATAL(
-        rclcpp::get_logger("DiffDriveArduinoHardware"),
+        rclcpp::get_logger("NeraHardware"),
         "Joint '%s' has %zu command interfaces found. 1 expected.", joint.name.c_str(),
         joint.command_interfaces.size());
       return hardware_interface::CallbackReturn::ERROR;
@@ -75,7 +64,7 @@ hardware_interface::CallbackReturn DiffDriveArduinoHardware::on_init(
     if (joint.command_interfaces[0].name != hardware_interface::HW_IF_VELOCITY)
     {
       RCLCPP_FATAL(
-        rclcpp::get_logger("DiffDriveArduinoHardware"),
+        rclcpp::get_logger("NeraHardware"),
         "Joint '%s' have %s command interfaces found. '%s' expected.", joint.name.c_str(),
         joint.command_interfaces[0].name.c_str(), hardware_interface::HW_IF_VELOCITY);
       return hardware_interface::CallbackReturn::ERROR;
@@ -84,7 +73,7 @@ hardware_interface::CallbackReturn DiffDriveArduinoHardware::on_init(
     if (joint.state_interfaces.size() != 2)
     {
       RCLCPP_FATAL(
-        rclcpp::get_logger("DiffDriveArduinoHardware"),
+        rclcpp::get_logger("NeraHardware"),
         "Joint '%s' has %zu state interface. 2 expected.", joint.name.c_str(),
         joint.state_interfaces.size());
       return hardware_interface::CallbackReturn::ERROR;
@@ -93,7 +82,7 @@ hardware_interface::CallbackReturn DiffDriveArduinoHardware::on_init(
     if (joint.state_interfaces[0].name != hardware_interface::HW_IF_POSITION)
     {
       RCLCPP_FATAL(
-        rclcpp::get_logger("DiffDriveArduinoHardware"),
+        rclcpp::get_logger("NeraHardware"),
         "Joint '%s' have '%s' as first state interface. '%s' expected.", joint.name.c_str(),
         joint.state_interfaces[0].name.c_str(), hardware_interface::HW_IF_POSITION);
       return hardware_interface::CallbackReturn::ERROR;
@@ -102,7 +91,7 @@ hardware_interface::CallbackReturn DiffDriveArduinoHardware::on_init(
     if (joint.state_interfaces[1].name != hardware_interface::HW_IF_VELOCITY)
     {
       RCLCPP_FATAL(
-        rclcpp::get_logger("DiffDriveArduinoHardware"),
+        rclcpp::get_logger("NeraHardware"),
         "Joint '%s' have '%s' as second state interface. '%s' expected.", joint.name.c_str(),
         joint.state_interfaces[1].name.c_str(), hardware_interface::HW_IF_VELOCITY);
       return hardware_interface::CallbackReturn::ERROR;
@@ -112,7 +101,7 @@ hardware_interface::CallbackReturn DiffDriveArduinoHardware::on_init(
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
-std::vector<hardware_interface::StateInterface> DiffDriveArduinoHardware::export_state_interfaces()
+std::vector<hardware_interface::StateInterface> NeraHardware::export_state_interfaces()
 {
   std::vector<hardware_interface::StateInterface> state_interfaces;
 
@@ -129,7 +118,7 @@ std::vector<hardware_interface::StateInterface> DiffDriveArduinoHardware::export
   return state_interfaces;
 }
 
-std::vector<hardware_interface::CommandInterface> DiffDriveArduinoHardware::export_command_interfaces()
+std::vector<hardware_interface::CommandInterface> NeraHardware::export_command_interfaces()
 {
   std::vector<hardware_interface::CommandInterface> command_interfaces;
 
@@ -142,61 +131,58 @@ std::vector<hardware_interface::CommandInterface> DiffDriveArduinoHardware::expo
   return command_interfaces;
 }
 
-hardware_interface::CallbackReturn DiffDriveArduinoHardware::on_configure(
+hardware_interface::CallbackReturn NeraHardware::on_configure(
   const rclcpp_lifecycle::State & /*previous_state*/)
 {
-  RCLCPP_INFO(rclcpp::get_logger("DiffDriveArduinoHardware"), "Configuring ...please wait...");
+  RCLCPP_INFO(rclcpp::get_logger("NeraHardware"), "Configuring ...please wait...");
   if (comms_.connected())
   {
     comms_.disconnect();
   }
   comms_.connect(cfg_.device, cfg_.baud_rate, cfg_.timeout_ms);
-  RCLCPP_INFO(rclcpp::get_logger("DiffDriveArduinoHardware"), "Successfully configured!");
+  RCLCPP_INFO(rclcpp::get_logger("NeraHardware"), "Successfully configured!");
 
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
-hardware_interface::CallbackReturn DiffDriveArduinoHardware::on_cleanup(
+hardware_interface::CallbackReturn NeraHardware::on_cleanup(
   const rclcpp_lifecycle::State & /*previous_state*/)
 {
-  RCLCPP_INFO(rclcpp::get_logger("DiffDriveArduinoHardware"), "Cleaning up ...please wait...");
+  RCLCPP_INFO(rclcpp::get_logger("NeraHardware"), "Cleaning up ...please wait...");
   if (comms_.connected())
   {
     comms_.disconnect();
   }
-  RCLCPP_INFO(rclcpp::get_logger("DiffDriveArduinoHardware"), "Successfully cleaned up!");
+  RCLCPP_INFO(rclcpp::get_logger("NeraHardware"), "Successfully cleaned up!");
 
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
 
-hardware_interface::CallbackReturn DiffDriveArduinoHardware::on_activate(
+hardware_interface::CallbackReturn NeraHardware::on_activate(
   const rclcpp_lifecycle::State & /*previous_state*/)
 {
-  RCLCPP_INFO(rclcpp::get_logger("DiffDriveArduinoHardware"), "Activating ...please wait...");
+  RCLCPP_INFO(rclcpp::get_logger("NeraHardware"), "Activating ...please wait...");
   if (!comms_.connected())
   {
     return hardware_interface::CallbackReturn::ERROR;
   }
-  if (cfg_.pid_p > 0)
-  {
-    comms_.set_pid_values(cfg_.pid_p,cfg_.pid_d,cfg_.pid_i,cfg_.pid_o);
-  }
-  RCLCPP_INFO(rclcpp::get_logger("DiffDriveArduinoHardware"), "Successfully activated!");
+
+  RCLCPP_INFO(rclcpp::get_logger("NeraHardware"), "Successfully activated!");
 
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
-hardware_interface::CallbackReturn DiffDriveArduinoHardware::on_deactivate(
+hardware_interface::CallbackReturn NeraHardware::on_deactivate(
   const rclcpp_lifecycle::State & /*previous_state*/)
 {
-  RCLCPP_INFO(rclcpp::get_logger("DiffDriveArduinoHardware"), "Deactivating ...please wait...");
-  RCLCPP_INFO(rclcpp::get_logger("DiffDriveArduinoHardware"), "Successfully deactivated!");
+  RCLCPP_INFO(rclcpp::get_logger("NeraHardware"), "Deactivating ...please wait...");
+  RCLCPP_INFO(rclcpp::get_logger("NeraHardware"), "Successfully deactivated!");
 
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
-hardware_interface::return_type DiffDriveArduinoHardware::read(
+hardware_interface::return_type NeraHardware::read(
   const rclcpp::Time & /*time*/, const rclcpp::Duration & period)
 {
   if (!comms_.connected())
@@ -204,22 +190,22 @@ hardware_interface::return_type DiffDriveArduinoHardware::read(
     return hardware_interface::return_type::ERROR;
   }
 
-  comms_.read_encoder_values(wheel_l_.enc, wheel_r_.enc);
+  // comms_.read_encoder_values(wheel_l_.enc, wheel_r_.enc);
 
-  double delta_seconds = period.seconds();
+  // double delta_seconds = period.seconds();
 
-  double pos_prev = wheel_l_.pos;
-  wheel_l_.pos = wheel_l_.calc_enc_angle();
-  wheel_l_.vel = (wheel_l_.pos - pos_prev) / delta_seconds;
+  // double pos_prev = wheel_l_.pos;
+  // wheel_l_.pos = wheel_l_.calc_enc_angle();
+  // wheel_l_.vel = (wheel_l_.pos - pos_prev) / delta_seconds;
 
-  pos_prev = wheel_r_.pos;
-  wheel_r_.pos = wheel_r_.calc_enc_angle();
-  wheel_r_.vel = (wheel_r_.pos - pos_prev) / delta_seconds;
+  // pos_prev = wheel_r_.pos;
+  // wheel_r_.pos = wheel_r_.calc_enc_angle();
+  // wheel_r_.vel = (wheel_r_.pos - pos_prev) / delta_seconds;
 
   return hardware_interface::return_type::OK;
 }
 
-hardware_interface::return_type diffdrive_arduino ::DiffDriveArduinoHardware::write(
+hardware_interface::return_type ros2_nera_hardware_interface ::NeraHardware::write(
   const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
 {
   if (!comms_.connected())
@@ -227,14 +213,14 @@ hardware_interface::return_type diffdrive_arduino ::DiffDriveArduinoHardware::wr
     return hardware_interface::return_type::ERROR;
   }
 
-  int motor_l_counts_per_loop = wheel_l_.cmd / wheel_l_.rads_per_count / cfg_.loop_rate;
-  int motor_r_counts_per_loop = wheel_r_.cmd / wheel_r_.rads_per_count / cfg_.loop_rate;
-  comms_.set_motor_values(motor_l_counts_per_loop, motor_r_counts_per_loop);
+  int motor_l_rpm = wheel_l_.cmd * 60 * 2 * M_PI * 100; //times 100
+  int motor_r_rpm = wheel_r_.cmd * 60 * 2 * M_PI * 100; //times 100
+  comms_.set_motor_values(motor_l_rpm, motor_r_rpm);
   return hardware_interface::return_type::OK;
 }
 
-}  // namespace diffdrive_arduino
+}  // namespace ros2_nera_hardware_interface
 
 #include "pluginlib/class_list_macros.hpp"
 PLUGINLIB_EXPORT_CLASS(
-  diffdrive_arduino::DiffDriveArduinoHardware, hardware_interface::SystemInterface)
+  ros2_nera_hardware_interface::NeraHardware, hardware_interface::SystemInterface)
