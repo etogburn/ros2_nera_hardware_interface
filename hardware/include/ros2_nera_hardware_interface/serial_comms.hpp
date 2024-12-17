@@ -56,7 +56,7 @@ public:
   }
 
 
-  std::string send_msg(const std::string &msg_to_send, bool print_output = true)
+  std::string send_msg(const std::vector<uint8_t>& msg_to_send, bool print_output = true)
   {
     serial_conn_.FlushIOBuffers(); // Just in case
     serial_conn_.Write(msg_to_send);
@@ -74,7 +74,13 @@ public:
 
     if (print_output)
     {
-      std::cout << "Sent: " << std::hex << msg_to_send << " Recv: " << response << std::endl;
+     // std::cout << "Sent: " << std::hex << msg_to_send << " Recv: " << response << std::endl;
+      std::cout << "Generated Packet: ";
+      for (uint8_t byte : msg_to_send) {
+          std::cout << "0x" << std::hex << static_cast<int>(byte) << " ";
+      }
+      std::cout << std::endl;
+    
     }
 
     return response;
@@ -82,12 +88,12 @@ public:
 
   void send_empty_msg()
   {
-    std::string response = send_msg("\r");
+    //std::string response = send_msg(0x00);
   }
 
   void read_encoder_values(int &val_1, int &val_2)
   {
-    std::string response = send_msg("e\r");
+    std::string response = "";//send_msg(0x00);
 
     std::string delimiter = " ";
     size_t del_pos = response.find(delimiter);
@@ -121,35 +127,56 @@ public:
   void set_motor_values(int16_t val_1, int16_t val_2)
   {
     std::stringstream ss;
+    std::vector<uint8_t> packet(7);
 
-    uint8_t tempBuf[7];
+    // Start byte
+    packet[0] = 0xAA;
 
-    tempBuf[0] = 0xAA;
-    tempBuf[1] = 0x02;
-    tempBuf[2] = 0x01;
-    tempBuf[3] = 0x01; //left motor
-    tempBuf[4] = (val_1 & 0xFF00) >> 8;
-    tempBuf[5] = val_1 & 0x00FF;
-    tempBuf[6] = tempBuf[0] ^ tempBuf[1] ^ tempBuf[2] ^ tempBuf[3] ^ tempBuf[4] ^ tempBuf[5];
+    // Data length byte
+    packet[1] = 0x02;
 
-    for(uint8_t i = 0; i < 7; i++) {
-      ss << tempBuf[i];
+    // Command bytes
+    packet[2] = 0x01;
+    packet[3] = 0x01;
+
+    // Data bytes (only using the first integer for now)
+    packet[4] = (val_1 >> 8) & 0xFF;  // High byte
+    packet[5] = val_1 & 0xFF;         // Low byte
+
+    // Calculate checksum (XOR all bytes)
+    uint8_t checksum = 0x00;
+    for (size_t i = 0; i < 6; ++i) {
+        checksum ^= packet[i];
     }
+    packet[6] = checksum;
+    // uint8_t tempBuf[7];
 
-    send_msg(ss.str()); //left
+    // tempBuf[0] = 0xAA;
+    // tempBuf[1] = 0x02;
+    // tempBuf[2] = 0x01;
+    // tempBuf[3] = 0x01; //left motor
+    // tempBuf[4] = (val_1 & 0xFF00) >> 8;
+    // tempBuf[5] = val_1 & 0x00FF;
+    // tempBuf[6] = tempBuf[0] ^ tempBuf[1] ^ tempBuf[2] ^ tempBuf[3] ^ tempBuf[4] ^ tempBuf[5];
 
-    tempBuf[3] = 0x02; //right motor
-    tempBuf[4] = (val_2& 0xFF00) >> 8;
-    tempBuf[5] = val_2 & 0x00FF;
-    tempBuf[6] = tempBuf[0] ^ tempBuf[1] ^ tempBuf[2] ^ tempBuf[3] ^ tempBuf[4] ^ tempBuf[5];
+    // for(uint8_t i = 0; i < 7; i++) {
+    //   ss << tempBuf[i];
+    // }
 
-    ss.str("");
+    send_msg(packet); //left
 
-    for(uint8_t i = 0; i < 7; i++) {
-      ss << tempBuf[i];
-    }
+    // tempBuf[3] = 0x02; //right motor
+    // tempBuf[4] = (val_2& 0xFF00) >> 8;
+    // tempBuf[5] = val_2 & 0x00FF;
+    // tempBuf[6] = tempBuf[0] ^ tempBuf[1] ^ tempBuf[2] ^ tempBuf[3] ^ tempBuf[4] ^ tempBuf[5];
 
-    send_msg(ss.str());
+    // ss.str("");
+
+    // for(uint8_t i = 0; i < 7; i++) {
+    //   ss << tempBuf[i];
+    // }
+
+    // send_msg(ss.str());
   }
 
 private:
