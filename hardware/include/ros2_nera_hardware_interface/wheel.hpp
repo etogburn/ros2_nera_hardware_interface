@@ -4,15 +4,18 @@
 #include <string>
 #include <cmath>
 
-
 class Wheel
 {
     public:
 
     std::string name = "";
-    int enc = 0;
+    int16_t enc = 0;
+    int16_t lastEnc = 0;
+    int encoder = 0;
     double cmd = 0;
+    int16_t speed = 0;
     double pos = 0;
+    double lastPos = 0;
     double vel = 0;
     double rads_per_count = 0;
 
@@ -32,9 +35,23 @@ class Wheel
 
     double calc_enc_angle()
     {
-      return enc * rads_per_count;
+      int16_t encChange =0;
+      encChange = enc - lastEnc;
+
+      encoder += encChange;
+      lastEnc = enc;
+      return encoder * rads_per_count;
     }
 
+    double calc_speed()
+    {
+      return speed * rads_per_count / 60;
+    }
+
+    int16_t get_wheel_rpm() 
+    {
+      return cmd * 60 * 100/(2 * M_PI);
+    }
 
 
 };

@@ -14,14 +14,28 @@
 
 from launch import LaunchDescription
 from launch.actions import RegisterEventHandler
+from launch.actions import IncludeLaunchDescription
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.event_handlers import OnProcessExit
 from launch.substitutions import Command, FindExecutable, PathJoinSubstitution
 
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
+import os
+from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
+    joy_launch = LaunchDescription()
+
+    joystick_lauch_file = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(get_package_share_directory('ros2_nera_hardware_interface'),
+                         'launch/joystick.launch.py')
+        )
+    )
+
+    joy_launch.add_action(joystick_lauch_file)
     # Get URDF via xacro
     robot_description_content = Command(
         [
@@ -97,6 +111,7 @@ def generate_launch_description():
     )
 
     nodes = [
+        joy_launch,
         control_node,
         robot_state_pub_node,
         joint_state_broadcaster_spawner,

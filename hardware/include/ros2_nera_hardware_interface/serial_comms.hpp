@@ -7,6 +7,23 @@
 #include <libserial/SerialPort.h>
 #include <iostream>
 
+//commands imported from hardware interface
+#define COMMAND_OK 0x00FF
+#define COMMAND_INVALID 0x00FE
+#define COMMAND_NOACTION 0x00FD
+#define COMMAND_READY 0x0001
+#define COMMAND_WAKE 0x0000
+#define COMMAND_SHUTDOWN 0x0002
+#define COMMAND_MOTORENABLE 0x0100
+#define COMMAND_SETMOTORSPEED 0x0101
+#define COMMAND_SETLEFTSPEED 0x0103
+#define COMMAND_SETRIGHTSPEED 0x0104
+#define COMMAND_MOTORSTOP 0x0102
+#define COMMAND_GETMOTORSPEED 0x0180
+#define COMMAND_GETMOTORPOSITION 0x0181
+
+#define COMMAND_START_BYTE 0xAA
+#define COMMAND_MIN_SIZE 5
 
 LibSerial::BaudRate convert_baud_rate(int baud_rate)
 {
@@ -30,6 +47,16 @@ LibSerial::BaudRate convert_baud_rate(int baud_rate)
       return LibSerial::BaudRate::BAUD_57600;
   }
 }
+
+struct Packet {
+  uint16_t command;
+  uint8_t dataLength; //data length only in packet to be sent
+  uint8_t responseLength; //total length of data to be recieved
+  std::vector<uint8_t> data;
+  bool valid;
+
+  Packet() : data(8) {}
+};
 
 class SerialComms
 {
@@ -55,17 +82,100 @@ public:
     return serial_conn_.IsOpen();
   }
 
-
-  std::string send_msg(const std::vector<uint8_t>& msg_to_send, bool print_output = true)
+  void send_wake_msg()
   {
-    serial_conn_.FlushIOBuffers(); // Just in case
-    serial_conn_.Write(msg_to_send);
+    Packet packet;
+    packet.command = COMMAND_READY;
+    packet.dataLength = 0;
+    packet.responseLength = 0;
+    packet.valid = true;
+    
+    send_packet(packet);
+  }
 
-    std::string response = "";
+  void get_encoder_values(int16_t &val_1, int16_t &val_2)
+  {
+    Packet packet;
+    packet.command = COMMAND_GETMOTORPOSITION;
+    packet.dataLength = 0;
+    packet.responseLength = 4;
+    packet.valid = true;
+
+    Packet response = send_packet(packet);
+
+    if(response.dataLength < 4) return;
+
+    val_1 = (response.data[0] << 8) | response.data[1];
+    val_2 = (response.data[2] << 8) | response.data[3];
+  }
+
+  void get_speed_values(int16_t &val_1, int16_t &val_2)
+  {
+    Packet packet;
+    packet.command = COMMAND_GETMOTORSPEED;
+    packet.dataLength = 0;
+    packet.responseLength = 4;
+    packet.valid = true;
+
+    Packet response = send_packet(packet);
+
+    if(response.dataLength < 4) return;
+
+    val_1 = (response.data[0] << 8) | response.data[1];
+    val_2 = (response.data[2] << 8) | response.data[3];
+  }
+  
+
+  void set_motor_values(int16_t val_1, int16_t val_2)
+  {
+    Packet packet;
+    packet.command = COMMAND_SETMOTORSPEED;
+    packet.dataLength = 4;
+    packet.responseLength = 0;
+    packet.valid = true;
+
+    packet.data[0] = (val_1 >> 8);
+    packet.data[1] = (val_1 & 0xFF);
+    packet.data[2] = (val_2 >> 8);
+    packet.data[3] = (val_2 & 0xFF);
+
+    send_packet(packet);
+
+  }
+
+  Packet send_packet(const Packet &packet, bool print_output = false)
+  {
+    const uint8_t bufLen = packet.dataLength + COMMAND_MIN_SIZE;
+    std::vector<uint8_t> buffer(bufLen);
+    // Start byte
+    buffer[0] = 0xAA;
+
+    // Data length byte
+    buffer[1] = packet.dataLength;
+
+    // Command bytes
+    buffer[2] = packet.command >> 8;
+    buffer[3] = packet.command & 0xFF;
+
+    for (uint8_t i = 4; i < bufLen - 1; ++i) {
+        buffer[i] = packet.data[i-4];
+    }
+
+    uint8_t checksum = 0x00;
+    for (uint8_t i = 0; i < bufLen - 1; ++i) {
+        checksum ^= buffer[i];
+    }
+    buffer[bufLen-1] = checksum;
+
+    serial_conn_.FlushIOBuffers(); // Just in case
+    serial_conn_.Write(buffer);
+
+    int bufSize = packet.responseLength + COMMAND_MIN_SIZE;
+    Packet response;
+    std::vector<uint8_t> responseBuf(bufSize);
     try
     {
-      // Responses end with \r\n so we will read up to (and including) the \n.
-   //   serial_conn_.ReadLine(response, '\n', timeout_ms_);
+        serial_conn_.Read(responseBuf, bufSize, timeout_ms_);
     }
     catch (const LibSerial::ReadTimeout&)
     {
@@ -76,112 +186,44 @@ public:
     {
      // std::cout << "Sent: " << std::hex << msg_to_send << " Recv: " << response << std::endl;
       std::cout << "Generated Packet: ";
-      for (uint8_t byte : msg_to_send) {
+      for (uint8_t byte : buffer) {
+          std::cout << "0x" << std::hex << static_cast<int>(byte) << " ";
+      }
+      std::cout << std::endl;
+
+      std::cout << "Recieved Packet: ";
+      for (uint8_t byte : responseBuf) {
           std::cout << "0x" << std::hex << static_cast<int>(byte) << " ";
       }
       std::cout << std::endl;
     
     }
 
-    return response;
-  }
+    response.dataLength = responseBuf[1];
+    response.command = (responseBuf[2] << 8) | responseBuf[3];
 
-  void send_empty_msg()
-  {
-    //std::string response = send_msg(0x00);
-  }
-
-  void read_encoder_values(int &val_1, int &val_2)
-  {
-    std::string response = "";//send_msg(0x00);
-
-    std::string delimiter = " ";
-    size_t del_pos = response.find(delimiter);
-    std::string token_1 = response.substr(0, del_pos);
-    std::string token_2 = response.substr(del_pos + delimiter.length());
-
-    val_1 = std::atoi(token_1.c_str());
-    val_2 = std::atoi(token_2.c_str());
-  }
-  // void set_motor_values(int val_1, int val_2)
-  // {
-  //   std::vector<unsigned char> leftMotor[7];
-  //   std::vector<unsigned char> rightMotor[7];
-
-  //   leftMotor[0] = 0xAA;
-  //   leftMotor[1] = 0x02;
-  //   leftMotor[2] = 0x01;
-  //   leftMotor[3] = 0x01;
-
-  //   send_packet(*leftMotor);
-  //   send_packet(*rightMotor);
-  // }
-
-  // void set_motor_values(int val_1, int val_2)
-  // {
-  //   std::stringstream ss;
-  //   ss << "m " << val_1 << " " << val_2 << "\r";
-  //   send_msg(ss.str());
-  // }
-
-  void set_motor_values(int16_t val_1, int16_t val_2)
-  {
-    std::stringstream ss;
-    std::vector<uint8_t> packet(7);
-
-    // Start byte
-    packet[0] = 0xAA;
-
-    // Data length byte
-    packet[1] = 0x02;
-
-    // Command bytes
-    packet[2] = 0x01;
-    packet[3] = 0x01;
-
-    // Data bytes (only using the first integer for now)
-    packet[4] = (val_1 >> 8) & 0xFF;  // High byte
-    packet[5] = val_1 & 0xFF;         // Low byte
-
-    // Calculate checksum (XOR all bytes)
-    uint8_t checksum = 0x00;
-    for (size_t i = 0; i < 6; ++i) {
-        checksum ^= packet[i];
+    if(response.dataLength > 0) {
+      for (uint8_t i = 0; i < response.dataLength; ++i) {
+        response.data[i] = responseBuf[i+4];
+      }
     }
-    packet[6] = checksum;
-    // uint8_t tempBuf[7];
 
-    // tempBuf[0] = 0xAA;
-    // tempBuf[1] = 0x02;
-    // tempBuf[2] = 0x01;
-    // tempBuf[3] = 0x01; //left motor
-    // tempBuf[4] = (val_1 & 0xFF00) >> 8;
-    // tempBuf[5] = val_1 & 0x00FF;
-    // tempBuf[6] = tempBuf[0] ^ tempBuf[1] ^ tempBuf[2] ^ tempBuf[3] ^ tempBuf[4] ^ tempBuf[5];
+    checksum = 0x00;
 
-    // for(uint8_t i = 0; i < 7; i++) {
-    //   ss << tempBuf[i];
-    // }
+    for (uint8_t i = 0; i < bufSize - 1; ++i) {
+        checksum ^= responseBuf[i];
+    }
+    
+    if(checksum == responseBuf[bufSize - 1]) response.valid = true;
+    else response.valid = false;
 
-    send_msg(packet); //left
-
-    // tempBuf[3] = 0x02; //right motor
-    // tempBuf[4] = (val_2& 0xFF00) >> 8;
-    // tempBuf[5] = val_2 & 0x00FF;
-    // tempBuf[6] = tempBuf[0] ^ tempBuf[1] ^ tempBuf[2] ^ tempBuf[3] ^ tempBuf[4] ^ tempBuf[5];
-
-    // ss.str("");
-
-    // for(uint8_t i = 0; i < 7; i++) {
-    //   ss << tempBuf[i];
-    // }
-
-    // send_msg(ss.str());
+    return response;
   }
 
 private:
     LibSerial::SerialPort serial_conn_;
     int timeout_ms_;
+
 };
 
 #endif // ROS2_NERA_HARDWARE_INTERFACE_ARDUINO_COMMS_HPP

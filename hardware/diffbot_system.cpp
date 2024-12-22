@@ -168,6 +168,8 @@ hardware_interface::CallbackReturn NeraHardware::on_activate(
     return hardware_interface::CallbackReturn::ERROR;
   }
 
+  comms_.send_wake_msg();
+
   RCLCPP_INFO(rclcpp::get_logger("NeraHardware"), "Successfully activated!");
 
   return hardware_interface::CallbackReturn::SUCCESS;
@@ -190,17 +192,13 @@ hardware_interface::return_type NeraHardware::read(
     return hardware_interface::return_type::ERROR;
   }
 
-  // comms_.read_encoder_values(wheel_l_.enc, wheel_r_.enc);
+  comms_.get_encoder_values(wheel_l_.enc, wheel_r_.enc);
+  wheel_l_.pos = wheel_l_.calc_enc_angle();
+  wheel_r_.pos = wheel_r_.calc_enc_angle();
 
-  // double delta_seconds = period.seconds();
-
-  // double pos_prev = wheel_l_.pos;
-  // wheel_l_.pos = wheel_l_.calc_enc_angle();
-  // wheel_l_.vel = (wheel_l_.pos - pos_prev) / delta_seconds;
-
-  // pos_prev = wheel_r_.pos;
-  // wheel_r_.pos = wheel_r_.calc_enc_angle();
-  // wheel_r_.vel = (wheel_r_.pos - pos_prev) / delta_seconds;
+  comms_.get_speed_values(wheel_l_.speed, wheel_r_.speed);
+  wheel_l_.vel = wheel_l_.calc_speed();
+  wheel_r_.vel = wheel_r_.calc_speed();
 
   return hardware_interface::return_type::OK;
 }
@@ -213,8 +211,8 @@ hardware_interface::return_type ros2_nera_hardware_interface ::NeraHardware::wri
     return hardware_interface::return_type::ERROR;
   }
 
-  int motor_l_rpm = wheel_l_.cmd * 60 * 2 * M_PI * 100; //times 100
-  int motor_r_rpm = wheel_r_.cmd * 60 * 2 * M_PI * 100; //times 100
+  int16_t motor_l_rpm = wheel_l_.get_wheel_rpm();
+  int16_t motor_r_rpm = wheel_r_.get_wheel_rpm();
   comms_.set_motor_values(motor_l_rpm, motor_r_rpm);
   return hardware_interface::return_type::OK;
 }
