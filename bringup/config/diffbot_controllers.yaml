@@ -7,6 +7,9 @@ controller_manager:
 
     diffbot_base_controller:
       type: diff_drive_controller/DiffDriveController
+    
+    imu_sensor_broadcaster:
+      type: imu_sensor_broadcaster/IMUSensorBroadcaster
 
 diffbot_base_controller:
   ros__parameters:
@@ -55,3 +58,8 @@ diffbot_base_controller:
     angular.z.min_acceleration: -8.0
     angular.z.max_jerk: 0.0
     angular.z.min_jerk: 0.0
+
+imu_sensor_broadcaster:
+  ros__parameters:
+    sensor_name: "imu_sensor"
+    frame_id:  "imu_link"

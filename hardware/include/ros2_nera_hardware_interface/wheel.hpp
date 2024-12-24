@@ -45,7 +45,7 @@ class Wheel
 
     double calc_speed()
     {
-      return speed * rads_per_count / 60;
+      return speed * (2 * M_PI) / 100 / 60;
     }
 
     int16_t get_wheel_rpm() 

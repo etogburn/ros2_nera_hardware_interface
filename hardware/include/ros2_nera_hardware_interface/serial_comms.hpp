@@ -21,6 +21,8 @@
 #define COMMAND_MOTORSTOP 0x0102
 #define COMMAND_GETMOTORSPEED 0x0180
 #define COMMAND_GETMOTORPOSITION 0x0181
+#define COMMAND_GETACCELVALS 0x0201
+#define COMMAND_GETGYROVALS 0x0210
 
 #define COMMAND_START_BYTE 0xAA
 #define COMMAND_MIN_SIZE 5
@@ -123,6 +125,40 @@ public:
 
     val_1 = (response.data[0] << 8) | response.data[1];
     val_2 = (response.data[2] << 8) | response.data[3];
+  }
+
+  void get_accel_values(int16_t &val_1, int16_t &val_2, int16_t &val_3)
+  {
+    Packet packet;
+    packet.command = COMMAND_GETACCELVALS;
+    packet.dataLength = 0;
+    packet.responseLength = 6;
+    packet.valid = true;
+
+    Packet response = send_packet(packet);
+
+    if(response.dataLength < 4) return;
+
+    val_1 = (response.data[0] << 8) | response.data[1];
+    val_2 = (response.data[2] << 8) | response.data[3];
+    val_3 = (response.data[4] << 8) | response.data[5];
+  }
+
+  void get_gyro_values(int16_t &val_1, int16_t &val_2, int16_t &val_3)
+  {
+    Packet packet;
+    packet.command = COMMAND_GETGYROVALS;
+    packet.dataLength = 0;
+    packet.responseLength = 6;
+    packet.valid = true;
+
+    Packet response = send_packet(packet);
+
+    if(response.dataLength < 4) return;
+
+    val_1 = (response.data[0] << 8) | response.data[1];
+    val_2 = (response.data[2] << 8) | response.data[3];
+    val_3 = (response.data[4] << 8) | response.data[5];
   }
   
 

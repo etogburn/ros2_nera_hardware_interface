@@ -38,15 +38,19 @@ hardware_interface::CallbackReturn NeraHardware::on_init(
 
   cfg_.left_wheel_name = info_.hardware_parameters["left_wheel_name"];
   cfg_.right_wheel_name = info_.hardware_parameters["right_wheel_name"];
+  cfg_.imu_sensor_name= info_.hardware_parameters["imu_sensor_name"];
   cfg_.loop_rate = std::stof(info_.hardware_parameters["loop_rate"]);
   cfg_.device = info_.hardware_parameters["device"];
   cfg_.baud_rate = std::stoi(info_.hardware_parameters["baud_rate"]);
   cfg_.timeout_ms = std::stoi(info_.hardware_parameters["timeout_ms"]);
   cfg_.enc_counts_per_rev = std::stoi(info_.hardware_parameters["enc_counts_per_rev"]);
+  cfg_.max_gyro_radps = std::stod(info_.hardware_parameters["max_gyro_radps"]);
+  cfg_.max_accel_mps = std::stod(info_.hardware_parameters["max_accel_mps"]);
   
 
   wheel_l_.setup(cfg_.left_wheel_name, cfg_.enc_counts_per_rev);
   wheel_r_.setup(cfg_.right_wheel_name, cfg_.enc_counts_per_rev);
+  imu_.setup(cfg_.imu_sensor_name, cfg_.max_gyro_radps, cfg_.max_accel_mps);
 
 
   for (const hardware_interface::ComponentInfo & joint : info_.joints)
@@ -115,6 +119,28 @@ std::vector<hardware_interface::StateInterface> NeraHardware::export_state_inter
   state_interfaces.emplace_back(hardware_interface::StateInterface(
     wheel_r_.name, hardware_interface::HW_IF_VELOCITY, &wheel_r_.vel));
 
+  state_interfaces.emplace_back(hardware_interface::StateInterface(
+    imu_.name, imu_.accelName[0], &imu_.accelmps[0]));
+  state_interfaces.emplace_back(hardware_interface::StateInterface(
+    imu_.name, imu_.accelName[1], &imu_.accelmps[1]));
+  state_interfaces.emplace_back(hardware_interface::StateInterface(
+    imu_.name, imu_.accelName[2], &imu_.accelmps[2]));
+  state_interfaces.emplace_back(hardware_interface::StateInterface(
+    imu_.name, imu_.gyroName[0], &imu_.gyroRadps[0]));
+  state_interfaces.emplace_back(hardware_interface::StateInterface(
+    imu_.name, imu_.gyroName[1], &imu_.gyroRadps[1]));
+  state_interfaces.emplace_back(hardware_interface::StateInterface(
+    imu_.name, imu_.gyroName[2], &imu_.gyroRadps[2]));
+
+  state_interfaces.emplace_back(hardware_interface::StateInterface(
+    imu_.name, "orientation.x", &imu_.mag[0]));
+  state_interfaces.emplace_back(hardware_interface::StateInterface(
+    imu_.name, "orientation.y", &imu_.mag[1]));
+  state_interfaces.emplace_back(hardware_interface::StateInterface(
+    imu_.name, "orientation.z", &imu_.mag[2]));
+  state_interfaces.emplace_back(hardware_interface::StateInterface(
+    imu_.name, "orientation.w", &imu_.mag[3]));
+
   return state_interfaces;
 }
 
@@ -153,6 +179,7 @@ hardware_interface::CallbackReturn NeraHardware::on_cleanup(
   {
     comms_.disconnect();
   }
+
   RCLCPP_INFO(rclcpp::get_logger("NeraHardware"), "Successfully cleaned up!");
 
   return hardware_interface::CallbackReturn::SUCCESS;
@@ -199,6 +226,13 @@ hardware_interface::return_type NeraHardware::read(
   comms_.get_speed_values(wheel_l_.speed, wheel_r_.speed);
   wheel_l_.vel = wheel_l_.calc_speed();
   wheel_r_.vel = wheel_r_.calc_speed();
+
+  comms_.get_accel_values(imu_.rawAccel[0], imu_.rawAccel[1], imu_.rawAccel[2]);
+  comms_.get_gyro_values(imu_.rawGyro[0], imu_.rawGyro[1], imu_.rawGyro[2]);
+
+  imu_.calc();
+
+  //std::cout << imu_.rawAccel[0] << " " << imu_.rawAccel[1] << " " << imu_.rawAccel[2] << std::endl;
 
   return hardware_interface::return_type::OK;
 }

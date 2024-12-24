@@ -85,13 +85,19 @@ def generate_launch_description():
     joint_state_broadcaster_spawner = Node(
         package="controller_manager",
         executable="spawner",
-        arguments=["joint_state_broadcaster", "--controller-manager", "/controller_manager"],
+        arguments=["joint_state_broadcaster"],#, "--controller-manager", "/controller_manager"],
+    )
+
+    imu_sensor_broadcaster_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["imu_sensor_broadcaster"],#, "--controller-manager", "/controller_manager"],
     )
 
     robot_controller_spawner = Node(
         package="controller_manager",
         executable="spawner",
-        arguments=["diffbot_base_controller", "--controller-manager", "/controller_manager"],
+        arguments=["diffbot_base_controller"],#, "--controller-manager", "/controller_manager"],
     )
 
     # Delay rviz start after `joint_state_broadcaster`
@@ -110,6 +116,13 @@ def generate_launch_description():
         )
     )
 
+    delay_imu_sensor_broadcaster_spawner_after_joint_state_broadcaster_spawner = RegisterEventHandler(
+        event_handler=OnProcessExit(
+            target_action=joint_state_broadcaster_spawner,
+            on_exit=[imu_sensor_broadcaster_spawner],
+        )
+    )
+
     nodes = [
         joy_launch,
         control_node,
@@ -117,6 +130,7 @@ def generate_launch_description():
         joint_state_broadcaster_spawner,
         delay_rviz_after_joint_state_broadcaster_spawner,
         delay_robot_controller_spawner_after_joint_state_broadcaster_spawner,
+        delay_imu_sensor_broadcaster_spawner_after_joint_state_broadcaster_spawner
     ]
 
     return LaunchDescription(nodes)
