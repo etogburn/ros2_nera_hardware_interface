@@ -15,7 +15,7 @@
         <param name="timeout_ms">1000</param>
         <param name="enc_counts_per_rev">792</param>
         <param name="max_accel_mps">39.24</param>
-        <param name="max_gyro_radps">3141.59</param>
+        <param name="max_gyro_radps">8.72664</param>
       </hardware>
       <joint name="${prefix}left_wheel_joint">
         <command_interface name="velocity"/>
