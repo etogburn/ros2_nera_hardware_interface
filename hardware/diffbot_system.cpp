@@ -120,17 +120,17 @@ std::vector<hardware_interface::StateInterface> NeraHardware::export_state_inter
     wheel_r_.name, hardware_interface::HW_IF_VELOCITY, &wheel_r_.vel));
 
   state_interfaces.emplace_back(hardware_interface::StateInterface(
-    imu_.name, imu_.accelName[0], &imu_.accelmps[0]));
+    imu_.name, imu_.accelName[X_IDX], &imu_.accelmps[X_IDX]));
   state_interfaces.emplace_back(hardware_interface::StateInterface(
-    imu_.name, imu_.accelName[1], &imu_.accelmps[1]));
+    imu_.name, imu_.accelName[Y_IDX], &imu_.accelmps[Y_IDX]));
   state_interfaces.emplace_back(hardware_interface::StateInterface(
-    imu_.name, imu_.accelName[2], &imu_.accelmps[2]));
+    imu_.name, imu_.accelName[Z_IDX], &imu_.accelmps[Z_IDX]));
   state_interfaces.emplace_back(hardware_interface::StateInterface(
-    imu_.name, imu_.gyroName[0], &imu_.gyroRadps[0]));
+    imu_.name, imu_.gyroName[X_IDX], &imu_.gyroRadps[X_IDX]));
   state_interfaces.emplace_back(hardware_interface::StateInterface(
-    imu_.name, imu_.gyroName[1], &imu_.gyroRadps[1]));
+    imu_.name, imu_.gyroName[Y_IDX], &imu_.gyroRadps[Y_IDX]));
   state_interfaces.emplace_back(hardware_interface::StateInterface(
-    imu_.name, imu_.gyroName[2], &imu_.gyroRadps[2]));
+    imu_.name, imu_.gyroName[Z_IDX], &imu_.gyroRadps[Z_IDX]));
 
   state_interfaces.emplace_back(hardware_interface::StateInterface(
     imu_.name, "orientation.x", &imu_.mag[0]));
