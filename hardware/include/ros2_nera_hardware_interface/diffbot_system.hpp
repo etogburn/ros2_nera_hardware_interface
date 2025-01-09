@@ -52,6 +52,7 @@ struct Config
   int enc_counts_per_rev = 0;
   float max_accel_mps = 0.0;
   float max_gyro_radps = 0.0;
+  double gyro_offset[3] = {0,0,0};
   int pid_p = 0;
   int pid_d = 0;
   int pid_i = 0;

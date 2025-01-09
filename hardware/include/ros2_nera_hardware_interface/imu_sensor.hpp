@@ -12,6 +12,7 @@
 #define INVY 0
 #define INVZ 0
 
+
 class IMU_Sensor
 {
     public:
@@ -23,18 +24,19 @@ class IMU_Sensor
     int16_t rawGyro[3] = {0,0,0};
     double gyro_raw_to_radps = 0;
     double accel_raw_to_mps = 0;
+    double gyroOffset[3] = {0,0,0};
     double accelmps[3] = {0,0,0};
     double gyroRadps[3] = {0,0,0};
     double mag[4] = {NAN,NAN,NAN,NAN};
 
     IMU_Sensor() = default;
 
-    IMU_Sensor(const std::string &imu_name, double gyro_max, double accel_max)
+    IMU_Sensor(const std::string &imu_name, double gyro_max, double accel_max, double *gyro_offset)
     {
-      setup(imu_name, gyro_max, accel_max);
+      setup(imu_name, gyro_max, accel_max, gyro_offset);
     }
 
-    void setup(const std::string &imu_name, double gyro_max, double accel_max)
+    void setup(const std::string &imu_name, double gyro_max, double accel_max, double *gyro_offset)
     {
       name = imu_name;
       accelName[X_IDX] = "linear_acceleration.x";
@@ -45,19 +47,23 @@ class IMU_Sensor
       gyroName[Z_IDX] = "angular_velocity.z";
       accel_raw_to_mps = accel_max;
       gyro_raw_to_radps =gyro_max;
+      gyroOffset[X_IDX] = gyro_offset[X_IDX];
+      gyroOffset[Y_IDX] = gyro_offset[Y_IDX];
+      gyroOffset[Z_IDX] = gyro_offset[Z_IDX];
     }
 
     void calc() {
       calc_gyro();
       calc_accel();
     }
+
     void calc_gyro()
     {
       int invertedMult = 1;
       for(int i = 0; i < 3; i++) {
         if(isInverted(i)) invertedMult = -1;
         else invertedMult = 1;
-        gyroRadps[i] = rawGyro[i] * gyro_raw_to_radps / 32768.0 * invertedMult;
+        gyroRadps[i] = (rawGyro[i] * gyro_raw_to_radps / 32768.0 * invertedMult) + gyroOffset[i];
       }
     }
 
@@ -71,7 +77,7 @@ class IMU_Sensor
       }
     }
 
-    bool isInverted(int axis) {{
+    bool isInverted(int axis) {
       switch (axis) {
         case X_IDX:
           return INVX;
@@ -83,10 +89,9 @@ class IMU_Sensor
           return INVZ;
           break;
       }
-
+    
       return 0;
-
-    }}
+    }
 
 };
 
