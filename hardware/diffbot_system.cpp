@@ -19,6 +19,8 @@
 #include <limits>
 #include <memory>
 #include <vector>
+#include <thread>
+//#include <unistd.h>
 
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
 #include "rclcpp/rclcpp.hpp"
@@ -46,14 +48,13 @@ hardware_interface::CallbackReturn NeraHardware::on_init(
   cfg_.enc_counts_per_rev = std::stoi(info_.hardware_parameters["enc_counts_per_rev"]);
   cfg_.max_gyro_radps = std::stod(info_.hardware_parameters["max_gyro_radps"]);
   cfg_.max_accel_mps = std::stod(info_.hardware_parameters["max_accel_mps"]);
-  cfg_.gyro_offset[X_IDX] = std::stod(info_.hardware_parameters["gyro_offset_x"]);
-  cfg_.gyro_offset[Y_IDX] = std::stod(info_.hardware_parameters["gyro_offset_y"]);
-  cfg_.gyro_offset[Z_IDX] = std::stod(info_.hardware_parameters["gyro_offset_z"]);
+  // cfg_.gyro_offset[X_IDX] = std::stod(info_.hardware_parameters["gyro_offset_x"]);
+  // cfg_.gyro_offset[Y_IDX] = std::stod(info_.hardware_parameters["gyro_offset_y"]);
+  // cfg_.gyro_offset[Z_IDX] = std::stod(info_.hardware_parameters["gyro_offset_z"]);
   
-
   wheel_l_.setup(cfg_.left_wheel_name, cfg_.enc_counts_per_rev);
   wheel_r_.setup(cfg_.right_wheel_name, cfg_.enc_counts_per_rev);
-  imu_.setup(cfg_.imu_sensor_name, cfg_.max_gyro_radps, cfg_.max_accel_mps, cfg_.gyro_offset);
+  imu_.setup(cfg_.imu_sensor_name, cfg_.max_gyro_radps, cfg_.max_accel_mps, cfg_.gyro_offset, cfg_.loop_rate);
 
 
   for (const hardware_interface::ComponentInfo & joint : info_.joints)
@@ -122,27 +123,30 @@ std::vector<hardware_interface::StateInterface> NeraHardware::export_state_inter
   state_interfaces.emplace_back(hardware_interface::StateInterface(
     wheel_r_.name, hardware_interface::HW_IF_VELOCITY, &wheel_r_.vel));
 
-  state_interfaces.emplace_back(hardware_interface::StateInterface(
-    imu_.name, imu_.accelName[X_IDX], &imu_.accelmps[X_IDX]));
-  state_interfaces.emplace_back(hardware_interface::StateInterface(
-    imu_.name, imu_.accelName[Y_IDX], &imu_.accelmps[Y_IDX]));
-  state_interfaces.emplace_back(hardware_interface::StateInterface(
-    imu_.name, imu_.accelName[Z_IDX], &imu_.accelmps[Z_IDX]));
-  state_interfaces.emplace_back(hardware_interface::StateInterface(
-    imu_.name, imu_.gyroName[X_IDX], &imu_.gyroRadps[X_IDX]));
-  state_interfaces.emplace_back(hardware_interface::StateInterface(
-    imu_.name, imu_.gyroName[Y_IDX], &imu_.gyroRadps[Y_IDX]));
-  state_interfaces.emplace_back(hardware_interface::StateInterface(
-    imu_.name, imu_.gyroName[Z_IDX], &imu_.gyroRadps[Z_IDX]));
+  for(int i = 0; i < 10; i++) {
+    state_interfaces.emplace_back(hardware_interface::StateInterface(
+      imu_.name, imu_.imuStateInterface[i], &imu_.imuStateVals[i]));
+  }
 
-  state_interfaces.emplace_back(hardware_interface::StateInterface(
-    imu_.name, "orientation.x", &imu_.mag[0]));
-  state_interfaces.emplace_back(hardware_interface::StateInterface(
-    imu_.name, "orientation.y", &imu_.mag[1]));
-  state_interfaces.emplace_back(hardware_interface::StateInterface(
-    imu_.name, "orientation.z", &imu_.mag[2]));
-  state_interfaces.emplace_back(hardware_interface::StateInterface(
-    imu_.name, "orientation.w", &imu_.mag[3]));
+  // state_interfaces.emplace_back(hardware_interface::StateInterface(
+  //   imu_.name, imu_.accelName[Y_IDX], &imu_.accelmps[Y_IDX]));
+  // state_interfaces.emplace_back(hardware_interface::StateInterface(
+  //   imu_.name, imu_.accelName[Z_IDX], &imu_.accelmps[Z_IDX]));
+  // state_interfaces.emplace_back(hardware_interface::StateInterface(
+  //   imu_.name, imu_.gyroName[X_IDX], &imu_.gyroRadps[X_IDX]));
+  // state_interfaces.emplace_back(hardware_interface::StateInterface(
+  //   imu_.name, imu_.gyroName[Y_IDX], &imu_.gyroRadps[Y_IDX]));
+  // state_interfaces.emplace_back(hardware_interface::StateInterface(
+  //   imu_.name, imu_.gyroName[Z_IDX], &imu_.gyroRadps[Z_IDX]));
+
+  // state_interfaces.emplace_back(hardware_interface::StateInterface(
+  //   imu_.name, "orientation.x", &imu_.mag[0]));
+  // state_interfaces.emplace_back(hardware_interface::StateInterface(
+  //   imu_.name, "orientation.y", &imu_.mag[1]));
+  // state_interfaces.emplace_back(hardware_interface::StateInterface(
+  //   imu_.name, "orientation.z", &imu_.mag[2]));
+  // state_interfaces.emplace_back(hardware_interface::StateInterface(
+  //   imu_.name, "orientation.w", &imu_.mag[3]));
 
   return state_interfaces;
 }
@@ -169,6 +173,14 @@ hardware_interface::CallbackReturn NeraHardware::on_configure(
     comms_.disconnect();
   }
   comms_.connect(cfg_.device, cfg_.baud_rate, cfg_.timeout_ms);
+
+  do {
+      std::this_thread::sleep_for(std::chrono::milliseconds(1000/cfg_.loop_rate));
+      comms_.get_accel_values(imu_.rawAccel[0], imu_.rawAccel[1], imu_.rawAccel[2]);
+      comms_.get_gyro_values(imu_.rawGyro[0], imu_.rawGyro[1], imu_.rawGyro[2]);
+      //usleep(1000000/cfg_.loop_rate);
+  } while(!imu_.calibrate());
+
   RCLCPP_INFO(rclcpp::get_logger("NeraHardware"), "Successfully configured!");
 
   return hardware_interface::CallbackReturn::SUCCESS;
