@@ -45,14 +45,13 @@ struct Config
   std::string left_wheel_name = "";
   std::string right_wheel_name = "";
   std::string imu_sensor_name = "";
-  float loop_rate = 0.0;
+  int loop_rate = 0;
   std::string device = "";
   int baud_rate = 0;
   int timeout_ms = 0;
   int enc_counts_per_rev = 0;
   float max_accel_mps = 0.0;
   float max_gyro_radps = 0.0;
-  double gyro_offset[3] = {0,0,0};
   int pid_p = 0;
   int pid_d = 0;
   int pid_i = 0;

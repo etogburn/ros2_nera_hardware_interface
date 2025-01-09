@@ -34,12 +34,12 @@ class IMU_Sensor
 
     IMU_Sensor() = default;
 
-    IMU_Sensor(const std::string &imu_name, double gyro_max, double accel_max, double *gyro_offset, int loop_rate)
+    IMU_Sensor(const std::string &imu_name, double gyro_max, double accel_max, int loop_rate)
     {
-      setup(imu_name, gyro_max, accel_max, gyro_offset, loop_rate);
+      setup(imu_name, gyro_max, accel_max, loop_rate);
     }
 
-    void setup(const std::string &imu_name, double gyro_max, double accel_max, double *gyro_offset, int loop_rate)
+    void setup(const std::string &imu_name, double gyro_max, double accel_max, int loop_rate)
     {
       name = imu_name;
       imuStateInterface[0] = "orientation.x";

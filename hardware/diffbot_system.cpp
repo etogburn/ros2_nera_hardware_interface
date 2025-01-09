@@ -41,7 +41,7 @@ hardware_interface::CallbackReturn NeraHardware::on_init(
   cfg_.left_wheel_name = info_.hardware_parameters["left_wheel_name"];
   cfg_.right_wheel_name = info_.hardware_parameters["right_wheel_name"];
   cfg_.imu_sensor_name= info_.hardware_parameters["imu_sensor_name"];
-  cfg_.loop_rate = std::stof(info_.hardware_parameters["loop_rate"]);
+  cfg_.loop_rate = std::stoi(info_.hardware_parameters["loop_rate"]);
   cfg_.device = info_.hardware_parameters["device"];
   cfg_.baud_rate = std::stoi(info_.hardware_parameters["baud_rate"]);
   cfg_.timeout_ms = std::stoi(info_.hardware_parameters["timeout_ms"]);
@@ -54,7 +54,7 @@ hardware_interface::CallbackReturn NeraHardware::on_init(
   
   wheel_l_.setup(cfg_.left_wheel_name, cfg_.enc_counts_per_rev);
   wheel_r_.setup(cfg_.right_wheel_name, cfg_.enc_counts_per_rev);
-  imu_.setup(cfg_.imu_sensor_name, cfg_.max_gyro_radps, cfg_.max_accel_mps, cfg_.gyro_offset, cfg_.loop_rate);
+  imu_.setup(cfg_.imu_sensor_name, cfg_.max_gyro_radps, cfg_.max_accel_mps, cfg_.loop_rate);
 
 
   for (const hardware_interface::ComponentInfo & joint : info_.joints)
@@ -174,8 +174,10 @@ hardware_interface::CallbackReturn NeraHardware::on_configure(
   }
   comms_.connect(cfg_.device, cfg_.baud_rate, cfg_.timeout_ms);
 
+  const int del = 1000000/cfg_.loop_rate;
+
   do {
-      std::this_thread::sleep_for(std::chrono::milliseconds(1000/cfg_.loop_rate));
+      std::this_thread::sleep_for(std::chrono::milliseconds(del));
       comms_.get_accel_values(imu_.rawAccel[0], imu_.rawAccel[1], imu_.rawAccel[2]);
       comms_.get_gyro_values(imu_.rawGyro[0], imu_.rawGyro[1], imu_.rawGyro[2]);
       //usleep(1000000/cfg_.loop_rate);
@@ -227,7 +229,7 @@ hardware_interface::CallbackReturn NeraHardware::on_deactivate(
 }
 
 hardware_interface::return_type NeraHardware::read(
-  const rclcpp::Time & /*time*/, const rclcpp::Duration & period)
+  const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
 {
   if (!comms_.connected())
   {
