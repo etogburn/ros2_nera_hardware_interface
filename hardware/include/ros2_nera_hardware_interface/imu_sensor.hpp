@@ -4,11 +4,11 @@
 #include <string>
 #include <cmath>
 
-#define X_IDX 2
+#define X_IDX 0
 #define Y_IDX 1
-#define Z_IDX 0
+#define Z_IDX 2
 
-#define INVX 1
+#define INVX 0
 #define INVY 0
 #define INVZ 0
 
