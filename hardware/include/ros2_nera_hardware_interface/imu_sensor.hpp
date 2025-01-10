@@ -58,14 +58,9 @@ class IMU_Sensor
       }
       accel_raw_to_mps = accel_max;
       gyro_raw_to_radps = gyro_max;
-      cal_vals_needed = loop_rate;
+      cal_vals_needed = loop_rate * 2;
 
       calc();
-
-      // gyroOffset[X_IDX] = gyro_offset[X_IDX];
-      // gyroOffset[Y_IDX] = gyro_offset[Y_IDX];
-      // gyroOffset[Z_IDX] = gyro_offset[Z_IDX];
-
     }
 
     void calc() {
@@ -82,61 +77,37 @@ class IMU_Sensor
 
     void calc_gyro()
     {
-      int invertedMult = 1;
       for(int i = 0; i < 3; i++) {
-        if(isInverted(i)) invertedMult = -1;
-        else invertedMult = 1;
-        gyroRadps[i] = (rawGyro[i] * gyro_raw_to_radps / 32768.0 * invertedMult) - gyroOffset[i];
+        gyroRadps[i] = (rawGyro[i] * gyro_raw_to_radps / 32768.0) - gyroOffset[i];
       }
     }
 
     void calc_accel()
     {
-      int invertedMult = 1;
       for(int i = 0; i < 3; i++) {
-        if(isInverted(i)) invertedMult = -1;
-        else invertedMult = 1;
-        accelmps[i] = rawAccel[i] * accel_raw_to_mps / 32768.0 * invertedMult;
+        accelmps[i] = rawAccel[i] * accel_raw_to_mps / 32768.0;
       }
     }
 
     bool calibrate() {
       static int loop_counter = 0;
+      static double tempVals[3] = {0,0,0};
       calc();
 
       loop_counter++;
 
       for(int i = 0; i < 3; i++) {
-        gyroOffset[i] = calcNewAverage(loop_counter, gyroOffset[i], gyroRadps[i]);
+        tempVals[i] = tempVals[i] + gyroRadps[i]; 
+        //if(i==0) std::cout << tempVals[i] << std::endl;
       }
 
       if(loop_counter > cal_vals_needed) {
+        gyroOffset[0] = tempVals[0]/loop_counter;
+        gyroOffset[1] = tempVals[1]/loop_counter;
+        gyroOffset[2] = tempVals[2]/loop_counter;
         return true;
       }
       return false;
-    }
-
-    double calcNewAverage(int numValues, double lastAvg, double newVal) {
-      if(numValues == 0) return 0;
-      if(numValues == 1) return newVal;
-
-      return ((lastAvg*(numValues-1)) + newVal)/numValues;
-    }
-
-    bool isInverted(int axis) {
-      switch (axis) {
-        case X_IDX:
-          return INVX;
-          break;
-        case Y_IDX:
-          return INVY;
-          break;
-        case Z_IDX:
-          return INVZ;
-          break;
-      }
-    
-      return 0;
     }
 
 };

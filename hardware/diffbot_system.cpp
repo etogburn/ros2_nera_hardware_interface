@@ -20,7 +20,7 @@
 #include <memory>
 #include <vector>
 #include <thread>
-//#include <unistd.h>
+#include <unistd.h>
 
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
 #include "rclcpp/rclcpp.hpp"
@@ -177,11 +177,13 @@ hardware_interface::CallbackReturn NeraHardware::on_configure(
   const int del = 1000000/cfg_.loop_rate;
 
   do {
-      std::this_thread::sleep_for(std::chrono::milliseconds(del));
+      //std::this_thread::sleep_for(std::chrono::milliseconds(del));
       comms_.get_accel_values(imu_.rawAccel[0], imu_.rawAccel[1], imu_.rawAccel[2]);
       comms_.get_gyro_values(imu_.rawGyro[0], imu_.rawGyro[1], imu_.rawGyro[2]);
-      //usleep(1000000/cfg_.loop_rate);
+      usleep(del);
   } while(!imu_.calibrate());
+
+  std::cout << imu_.gyroOffset[0] << ", " << imu_.gyroOffset[1] << ", " << imu_.gyroOffset[2] <<std::endl;
 
   RCLCPP_INFO(rclcpp::get_logger("NeraHardware"), "Successfully configured!");
 
